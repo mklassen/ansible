@@ -56,6 +56,13 @@ options:
               (although this particular option is better set via
               C(accept_hostkey)).
         version_added: "1.5"
+    deploy_key:
+        required: false
+        default: None
+        description:
+            - Specify an optional private key to use for the checkout.
+              This is not a file, but the actual private key and overrides
+              key_file
     key_file:
         description:
             - Specify an optional private key file path, on the target host, to use for the checkout.
@@ -1059,6 +1066,7 @@ def main():
             verify_commit=dict(default='no', type='bool'),
             gpg_whitelist=dict(default=[], type='list'),
             accept_hostkey=dict(default='no', type='bool'),
+            deploy_key=dict(default=None, type='str', required=False),
             key_file=dict(default=None, type='path', required=False),
             ssh_opts=dict(default=None, required=False),
             executable=dict(default=None, type='path'),
@@ -1089,6 +1097,7 @@ def main():
     gpg_whitelist = module.params['gpg_whitelist']
     reference = module.params['reference']
     git_path = module.params['executable'] or module.get_bin_path('git', True)
+    deploy_key = module.params['deploy_key']
     key_file = module.params['key_file']
     ssh_opts = module.params['ssh_opts']
     umask = module.params['umask']
@@ -1149,6 +1158,13 @@ def main():
                 details=to_text(err),
             )
         gitconfig = os.path.join(repo_path, 'config')
+
+    # create a temporary file with the deploy_key
+    if deploy_key:
+        with tempfile.NamedTemporaryFile(delete=False) as f:
+            f.write(deploy_key.encode('utf-8'))
+            key_file = f.name
+        module.add_cleanup_file(path=key_file)
 
     # create a wrapper script and export
     # GIT_SSH=<path> as an environment variable
