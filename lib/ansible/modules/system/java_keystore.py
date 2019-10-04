@@ -113,6 +113,7 @@ cmd:
 from ansible.module_utils.basic import AnsibleModule
 import os
 import re
+import errno
 
 
 def read_certificate_fingerprint(module, openssl_bin, certificate_path):
@@ -168,12 +169,22 @@ def create_file(path, content):
     return path
 
 
+def get_file_or_content(data):
+    try:
+        with open(data, 'r') as f:
+            return f.read()
+    except EnvironmentError as e:
+        if e.errno != errno.ENOENT:
+            raise
+        return data
+
+
 def create_tmp_certificate(module):
-    return create_file("/tmp/%s.crt" % module.params['name'], module.params['certificate'])
+    return create_file("/tmp/%s.crt" % module.params['name'], get_file_or_content(module.params['certificate']))
 
 
 def create_tmp_private_key(module):
-    return create_file("/tmp/%s.key" % module.params['name'], module.params['private_key'])
+    return create_file("/tmp/%s.key" % module.params['name'], get_file_or_content(module.params['private_key']))
 
 
 def cert_changed(module, openssl_bin, keytool_bin, keystore_path, keystore_pass, alias):
